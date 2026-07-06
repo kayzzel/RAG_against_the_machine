@@ -1,6 +1,6 @@
 """RAG Against the Machine - Retrieval-Augmented Generation System."""
 
-__version__ = "1.6"
+__version__ = "1.0"
 __author__ = "gabach"
 
 from src.student.models import (

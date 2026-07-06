@@ -4,7 +4,7 @@ NAME		=	RAG_against_the_machine
 
 SRC			=	student
 VENV		=	.venv
-MODEL		=	llm_sdk
+MODEL		=	vllm
 
 OTHER		?=
 
