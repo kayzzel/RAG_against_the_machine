@@ -4,7 +4,8 @@ All models follow Pydantic v2 best practices with minimal configuration.
 Config is only added when actually needed for validation behavior.
 """
 
-from typing import List
+from typing import Annotated, List, Literal
+from datetime import datetime
 from pydantic import BaseModel, Field
 import uuid
 
@@ -17,6 +18,8 @@ class MinimalSource(BaseModel):
         first_character_index: Starting position of chunk in file
         last_character_index: Ending position of chunk in file
     """
+    model_config = {"extra": "forbid"}
+
     file_path: str
     first_character_index: int
     last_character_index: int
@@ -26,9 +29,11 @@ class UnansweredQuestion(BaseModel):
     """Represents a question without an answer.
 
     Attributes:
+        type: Discriminator field for union (always "unanswered")
         question_id: Unique identifier (auto-generated UUID if not provided)
         question: The actual question text
     """
+    type: Literal["unanswered"] = "unanswered"
     question_id: str = Field(
         default_factory=lambda: str(uuid.uuid4()),
         description="Unique identifier for this question"
@@ -40,9 +45,11 @@ class AnsweredQuestion(UnansweredQuestion):
     """Extends UnansweredQuestion with answer and source citations.
 
     Attributes:
+        type: Discriminator field for union (always "answered")
         sources: List of MinimalSource objects showing where answer comes from
         answer: The answer text
     """
+    type: Literal["answered"] = "answered"  # type: ignore[assignment]
     sources: List[MinimalSource] = Field(
         ...,
         description="Source locations this answer is based on"
@@ -56,7 +63,9 @@ class RagDataset(BaseModel):
     Attributes:
         rag_questions: List of questions (answered or unanswered)
     """
-    rag_questions: List[AnsweredQuestion | UnansweredQuestion] = Field(
+    rag_questions: List[Annotated[
+        AnsweredQuestion | UnansweredQuestion, Field(discriminator="type")
+    ]] = Field(
         ...,
         description="List of questions in the dataset"
     )
@@ -70,6 +79,8 @@ class MinimalSearchResults(BaseModel):
         question: The question text
         retrieved_sources: List of MinimalSource objects found in search
     """
+    model_config = {"extra": "forbid"}
+
     question_id: str = Field(..., description="ID of the question")
     question: str = Field(..., description="The question text")
     retrieved_sources: List[MinimalSource] = Field(
@@ -96,6 +107,8 @@ class StudentSearchResults(BaseModel):
         search_results: List of MinimalSearchResults (one per question)
         k: Number of results retrieved per question
     """
+    model_config = {"extra": "forbid"}
+
     search_results: List[MinimalSearchResults] = Field(
         ...,
         description="List of search results"
@@ -183,4 +196,4 @@ class IndexMetadata(BaseModel):
         ge=0
     )
     index_type: str = Field(..., description="Type of index (e.g., 'bm25')")
-    created_at: str = Field(..., description="ISO 8601 timestamp")
+    created_at: datetime = Field(..., description="ISO 8601 timestamp")
