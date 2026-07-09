@@ -8,8 +8,8 @@ MODEL		=	vllm
 
 OTHER		?=
 
-EXCLUDE				=	--exclude $(VENV),$(MODEL)
-EXCLUDE_MYPY 		=	--exclude $(VENV) --exclude $(MODEL)
+EXCLUDE				=	--exclude $(VENV),$(MODEL),tests
+EXCLUDE_MYPY 		=	--exclude $(VENV) --exclude $(MODEL) --exclude tests
 
 #-------------------------------- RULES --------------------------------------#
 

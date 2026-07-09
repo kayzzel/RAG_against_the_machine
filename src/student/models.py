@@ -4,7 +4,7 @@ All models follow Pydantic v2 best practices with minimal configuration.
 Config is only added when actually needed for validation behavior.
 """
 
-from typing import List, overload, override
+from typing import List
 from pydantic import BaseModel, Field
 import uuid
 
@@ -117,7 +117,7 @@ class StudentSearchResultsAndAnswer(StudentSearchResults):
         search_results: List of MinimalAnswer (overrides parent)
         k: Number of results per question
     """
-    search_results: List[MinimalAnswer] = Field(
+    search_results: List[MinimalAnswer] = Field(  # type: ignore[assignment]
         ...,
         description="List of search results with answers"
     )

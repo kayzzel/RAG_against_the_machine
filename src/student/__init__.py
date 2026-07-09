@@ -3,7 +3,7 @@
 __version__ = "1.0"
 __author__ = "gabach"
 
-from src.student.models import (
+from .models import (
     MinimalSource,
     UnansweredQuestion,
     AnsweredQuestion,
@@ -12,6 +12,8 @@ from src.student.models import (
     MinimalAnswer,
     StudentSearchResults,
     StudentSearchResultsAndAnswer,
+    Chunk,
+    IndexMetadata,
 )
 
 __all__ = [
@@ -23,4 +25,6 @@ __all__ = [
     "MinimalAnswer",
     "StudentSearchResults",
     "StudentSearchResultsAndAnswer",
+    "Chunk",
+    "IndexMetadata",
 ]

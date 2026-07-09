@@ -8,7 +8,7 @@ import json
 from pydantic import ValidationError
 import uuid
 
-from src.student.models import (
+from student.models import (
     MinimalSource,
     UnansweredQuestion,
     AnsweredQuestion,
@@ -233,7 +233,7 @@ class TestRagDataset:
             UnansweredQuestion(question="Q1?"),
             AnsweredQuestion(
                 question="Q2?",
-                sources=[MinimalSource("f.py", 0, 50)],
+                sources=[MinimalSource(file_path="f.py", first_character_index=0, last_character_index=50)],
                 answer="Answer."
             ),
             UnansweredQuestion(question="Q3?"),
@@ -251,7 +251,7 @@ class TestRagDataset:
             UnansweredQuestion(question="Q1?"),
             AnsweredQuestion(
                 question="Q2?",
-                sources=[MinimalSource("f.py", 0, 50)],
+                sources=[MinimalSource(file_path="f.py", first_character_index=0, last_character_index=50)],
                 answer="Ans."
             ),
         ]
@@ -277,8 +277,8 @@ class TestMinimalSearchResults:
     def test_creation(self) -> None:
         """Test basic creation."""
         sources = [
-            MinimalSource("file1.py", 0, 100),
-            MinimalSource("file2.py", 50, 150),
+            MinimalSource(file_path="file1.py", first_character_index=0, last_character_index=100),
+            MinimalSource(file_path="file2.py", first_character_index=50, last_character_index=150),
         ]
 
         result = MinimalSearchResults(
@@ -302,7 +302,7 @@ class TestMinimalSearchResults:
 
     def test_serialization(self) -> None:
         """Test JSON serialization."""
-        sources = [MinimalSource("test.py", 0, 50)]
+        sources = [MinimalSource(file_path="test.py", first_character_index=0, last_character_index=50)]
         result = MinimalSearchResults(
             question_id="q1",
             question="Q?",
@@ -319,7 +319,7 @@ class TestMinimalAnswer:
 
     def test_creation(self) -> None:
         """Test creating answer with sources."""
-        sources = [MinimalSource("doc.md", 0, 100)]
+        sources = [MinimalSource(file_path="doc.md", first_character_index=0, last_character_index=100)]
 
         answer = MinimalAnswer(
             question_id="q1",
@@ -334,7 +334,7 @@ class TestMinimalAnswer:
 
     def test_inherits_search_results(self) -> None:
         """Test that MinimalAnswer extends MinimalSearchResults."""
-        sources = [MinimalSource("test.py", 0, 50)]
+        sources = [MinimalSource(file_path="test.py", first_character_index=0, last_character_index=50)]
 
         answer = MinimalAnswer(
             question_id="q1",
@@ -364,12 +364,12 @@ class TestStudentSearchResults:
             MinimalSearchResults(
                 question_id="q1",
                 question="Q1?",
-                retrieved_sources=[MinimalSource("f.py", 0, 50)]
+                retrieved_sources=[MinimalSource(file_path="f.py", first_character_index=0, last_character_index=50)]
             ),
             MinimalSearchResults(
                 question_id="q2",
                 question="Q2?",
-                retrieved_sources=[MinimalSource("f.py", 100, 150)]
+                retrieved_sources=[MinimalSource(file_path="f.py", first_character_index=100, last_character_index=150)]
             ),
         ]
 
@@ -401,13 +401,13 @@ class TestStudentSearchResultsAndAnswer:
             MinimalAnswer(
                 question_id="q1",
                 question="Q1?",
-                retrieved_sources=[MinimalSource("f.py", 0, 50)],
+                retrieved_sources=[MinimalSource(file_path="f.py", first_character_index=0, last_character_index=50)],
                 answer="A1."
             ),
             MinimalAnswer(
                 question_id="q2",
                 question="Q2?",
-                retrieved_sources=[MinimalSource("f.py", 100, 150)],
+                retrieved_sources=[MinimalSource(file_path="f.py", first_character_index=100, last_character_index=150)],
                 answer="A2."
             ),
         ]
@@ -424,7 +424,7 @@ class TestStudentSearchResultsAndAnswer:
             MinimalAnswer(
                 question_id="q1",
                 question="Q?",
-                retrieved_sources=[MinimalSource("f.py", 0, 50)],
+                retrieved_sources=[MinimalSource(file_path="f.py", first_character_index=0, last_character_index=50)],
                 answer="A."
             ),
         ]
@@ -595,8 +595,8 @@ class TestIntegration:
         """Test serialization of a complete RAG result."""
         # Create a complete answer with sources
         sources = [
-            MinimalSource("docs/api.md", 100, 200),
-            MinimalSource("src/api.py", 50, 150),
+            MinimalSource(file_path="docs/api.md", first_character_index=100, last_character_index=200),
+            MinimalSource(file_path="src/api.py", first_character_index=50, last_character_index=150),
         ]
 
         answer = MinimalAnswer(
@@ -635,7 +635,7 @@ class TestIntegration:
                 UnansweredQuestion(question="Q1?"),
                 AnsweredQuestion(
                     question="Q2?",
-                    sources=[MinimalSource("f.py", 0, 50)],
+                    sources=[MinimalSource(file_path="f.py", first_character_index=0, last_character_index=50)],
                     answer="A."
                 ),
                 UnansweredQuestion(question="Q3?"),
