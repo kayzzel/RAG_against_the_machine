@@ -77,6 +77,17 @@ class Chunking:
                     end: int,
                     chunk_type: str
                 ) -> None:
+        """Append a chunk from source[start:end], splitting with
+        basic_chunking if it exceeds max_chunk_size.
+
+        Args:
+            chunks: List to append the resulting chunk(s) to.
+            filename: Path to the source file.
+            source: Full text content of the file.
+            start: Starting character index of the range.
+            end: Ending character index of the range.
+            chunk_type: Type to assign to the appended chunk(s).
+        """
         text = source[start:end]
         if len(text) <= self.__max_chunk_size:
             chunks.append(Chunk(
@@ -96,9 +107,15 @@ class Chunking:
             chunks.append(sub)
 
     def __find_sections(self, source: str) -> list[tuple[int, int, int]]:
-        """Return list of (depth, start_char, end_char) for each section.
+        """Find header sections as (depth, start_char, end_char) tuples.
 
         depth=0 is used for any leading content before the first header.
+
+        Args:
+            source: Full Markdown text content.
+
+        Returns:
+            List of (depth, start_char, end_char) for each section.
         """
         lines = source.splitlines(keepends=True)
         sections: list[tuple[int, int]] = []  # (depth, start_char)
@@ -130,9 +147,16 @@ class Chunking:
                     self,
                     sections: list[tuple[int, int, int]]
                  ) -> list[tuple[int, int]]:
-        """Merge sections so each entry spans a header and everything under it
-        until the next header of equal-or-shallower depth than the deepest
-        section absorbed so far."""
+        """Merge sections so each entry spans a header and everything under
+        it until the next header of equal-or-shallower depth than the
+        deepest section absorbed so far.
+
+        Args:
+            sections: List of (depth, start_char, end_char) tuples.
+
+        Returns:
+            List of (start_char, end_char) tuples for merged sections.
+        """
         merged: list[tuple[int, int]] = []
         parent_index = 0
 
@@ -156,8 +180,18 @@ class Chunking:
         return merged
 
     def markdown_chunking(self, filename: str, source: str) -> list[Chunk]:
-        """Chunk a Markdown file by header sections, falling back to
-        basic_chunking for any section exceeding max_chunk_size."""
+        """Chunk a Markdown file by header sections.
+
+        Falls back to basic_chunking for any section exceeding
+        max_chunk_size.
+
+        Args:
+            filename: Path to the source file.
+            source: Full Markdown text content.
+
+        Returns:
+            List of Chunk objects with positions in the original file.
+        """
         raw_sections = self.__find_sections(source)
         merged = self.__merge_by_depth(raw_sections)
 
@@ -174,7 +208,15 @@ class Chunking:
         return chunks
 
     def __build_line_offsets(self, source: str) -> list[int]:
-        """offsets[i] = character index where line i+1 (1-indexed) starts."""
+        """Compute the character index where each line starts.
+
+        Args:
+            source: Full text content.
+
+        Returns:
+            List where offsets[i] is the character index at which line
+            i+1 (1-indexed) starts.
+        """
         offsets = [0]
         for line in source.splitlines(keepends=True):
             offsets.append(offsets[-1] + len(line))
@@ -183,8 +225,19 @@ class Chunking:
     def __node_char_range(
         self, node: ast.stmt, line_offsets: list[int]
     ) -> tuple[int, int]:
-        """Character (start, end) for a top-level statement, extending the
-        start to cover any decorators so they stay attached to their def.
+        """Compute the character (start, end) range for a top-level
+        statement, extending the start to cover any decorators so they
+        stay attached to their def.
+
+        Args:
+            node: Top-level statement node from the AST.
+            line_offsets: Line start offsets from __build_line_offsets.
+
+        Returns:
+            (start_char, end_char) tuple for the statement.
+
+        Raises:
+            ValueError: If the node is missing end position information.
         """
         start_node: ast.expr | ast.stmt = node
         decorators = getattr(node, "decorator_list", None)
@@ -201,9 +254,18 @@ class Chunking:
         return start, end
 
     def python_chunking(self, filename: str, source: str) -> list[Chunk]:
-        """Chunk a Python file using AST boundaries: each top-level function
-        or class becomes its own chunk (falling back to basic_chunking if
-        oversized); consecutive non-def/class statements are grouped together.
+        """Chunk a Python file using AST boundaries.
+
+        Each top-level function or class becomes its own chunk (falling
+        back to basic_chunking if oversized); consecutive non-def/class
+        statements are grouped together.
+
+        Args:
+            filename: Path to the source file.
+            source: Full Python source text.
+
+        Returns:
+            List of Chunk objects with positions in the original file.
         """
         try:
             tree = ast.parse(source)
@@ -249,10 +311,25 @@ class Chunking:
     def chunk_file(self, filename: str) -> list[Chunk]:
         """Chunk a file based on its type.
 
+        Python files use AST-aware chunking, Markdown files use header
+        sections, and everything else falls back to basic chunking.
+
         Args:
             filename: Path to the file to chunk.
 
         Returns:
             List of Chunk objects.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            OSError: If the file cannot be read.
         """
-        return []
+        with open(filename, "r", encoding="utf-8") as f:
+            source = f.read()
+
+        suffix = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        if suffix == "py":
+            return self.python_chunking(filename, source)
+        if suffix in ("md", "markdown"):
+            return self.markdown_chunking(filename, source)
+        return self.basic_chunking(filename, source)

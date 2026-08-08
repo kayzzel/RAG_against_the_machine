@@ -4,6 +4,7 @@ from .cli import CLI
 
 
 def main() -> None:
+    """Run the CLI application using Fire."""
     Fire(CLI)
 
 
