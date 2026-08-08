@@ -148,7 +148,7 @@ class Chunk(BaseModel):
         file_path: Which file this chunk came from
         start_index: Character position in original file
         end_index: Character position in original file
-        chunk_type: Either "python" or "text"
+        chunk_type: Either "python", "text", "code", "markdown", or "basic"
     """
     chunk_id: str = Field(
         default_factory=lambda: str(uuid.uuid4()),
@@ -168,8 +168,11 @@ class Chunk(BaseModel):
     )
     chunk_type: str = Field(
         ...,
-        description="Type of chunk: 'python' or 'text'",
-        pattern="^(python|text)$"
+        description=(
+            "Type of chunk: 'python', 'text', 'code', 'markdown', "
+            "or 'basic'"
+        ),
+        pattern="^(python|text|code|markdown|basic)$"
     )
 
 
