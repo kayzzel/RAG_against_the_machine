@@ -43,12 +43,13 @@ lint-strict: check_uv
 	uv run mypy . $(EXCLUDE_MYPY) --strict
 
 clean:
-	find . -name "__pycache__" -type d -exec rm -rf "{}" +
-	find . -name "*.pyc" -delete
-	find . -name ".mypy_cache" -type d -exec rm -rf "{}" +
-	find . -name ".pytest_cache" -type d -exec rm -rf "{}" +
-	find . -name ".coverage" -delete
-	find . -name "htmlcov" -type d -exec rm -rf "{}" +
+	find . -name "__pycache__" 		-type d -exec rm -rf "{}" +
+	find . -name ".mypy_cache" 		-type d -exec rm -rf "{}" +
+	find . -name ".pytest_cache" 	-type d -exec rm -rf "{}" +
+	find . -name "htmlcov" 			-type d -exec rm -rf "{}" +
+	find . -name "*.egg-info" 		-type d -exec rm -rf "{}" +
+	find . -name ".coverage" 		-delete
+	find . -name "*.pyc" 			-delete
 
 fclean: clean
 	rm -rf .venv
