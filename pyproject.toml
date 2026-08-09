@@ -1,7 +1,7 @@
 [project]
-name = "call-me-maybe"
+name = "rag-against-the-machine"
 version = "0.1.0"
-description = "An AI project that has for goal to find a function name and argmenta based of a prompt"
+description = "A retrieval-augmented generation (RAG) system that answers natural-language questions about the vLLM codebase by indexing and retrieving relevant source chunks (BM25) and generating grounded answers with an LLM"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -24,10 +24,18 @@ dev = [
     "pytest>=8.0.0",
 ]
 
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
 [[tool.mypy.overrides]]
 module = "vllm.*"
 ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = "fire"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "bm25s"
 ignore_missing_imports = true

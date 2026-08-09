@@ -2,9 +2,9 @@
 
 NAME		=	RAG_against_the_machine
 
-SRC			=	student
+SRC			=	src
 VENV		=	.venv
-MODEL		=	vllm
+MODEL		=	vllm-0.10.1
 
 OTHER		?=
 
@@ -13,7 +13,7 @@ EXCLUDE_MYPY 		=	--exclude $(VENV) --exclude $(MODEL) --exclude tests
 
 #-------------------------------- RULES --------------------------------------#
 
-.PHONY: all install run debug clean fclean re reset lint lint-strict help
+.PHONY: all install run debug clean fclean re reset lint lint-strict check_uv help
 
 all: check_uv install run
 
@@ -24,7 +24,7 @@ run: check_uv
 	@uv run python -m $(SRC) $(OTHER)
 
 debug: check_uv
-	@uv run python -m pdb $(SRC) $(OTHER)
+	@uv run python -m pdb -m $(SRC) $(OTHER)
 
 test: check_uv
 	uv run pytest tests/ -v

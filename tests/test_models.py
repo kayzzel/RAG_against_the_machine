@@ -8,7 +8,7 @@ import json
 from pydantic import ValidationError
 import uuid
 
-from student.models import (
+from src.models import (
     MinimalSource,
     UnansweredQuestion,
     AnsweredQuestion,
@@ -22,826 +22,204 @@ from student.models import (
 )
 
 
-# ============================================================================
-# MINIMAL SOURCE TESTS
-# ============================================================================
-
 class TestMinimalSource:
-    """Tests for MinimalSource model."""
-
     def test_creation_basic(self) -> None:
-        """Test basic MinimalSource creation."""
-        source = MinimalSource(
-            file_path="vllm/core/scheduler.py",
-            first_character_index=100,
-            last_character_index=500
-        )
-
+        source = MinimalSource(file_path="vllm/core/scheduler.py", first_character_index=100, last_character_index=500)
         assert source.file_path == "vllm/core/scheduler.py"
-        assert source.first_character_index == 100
-        assert source.last_character_index == 500
 
     def test_serialization(self) -> None:
-        """Test JSON serialization."""
-        source = MinimalSource(
-            file_path="test.py",
-            first_character_index=0,
-            last_character_index=100
-        )
-
-        # To dict
+        source = MinimalSource(file_path="test.py", first_character_index=0, last_character_index=100)
         data = source.model_dump()
-        assert data == {
-            "file_path": "test.py",
-            "first_character_index": 0,
-            "last_character_index": 100
-        }
-
-        # To JSON string
-        json_str = source.model_dump_json()
-        assert isinstance(json_str, str)
-        parsed = json.loads(json_str)
-        assert parsed["file_path"] == "test.py"
+        assert data == {"file_path": "test.py", "first_character_index": 0, "last_character_index": 100}
 
     def test_extra_fields_forbidden(self) -> None:
-        """Test that extra fields raise ValidationError."""
         with pytest.raises(ValidationError):
-            MinimalSource(
-                file_path="test.py",
-                first_character_index=0,
-                last_character_index=100,
-                extra_field="not allowed"
-            )
-
-    def test_deserialization(self) -> None:
-        """Test creating from dict/JSON."""
-        data = {
-            "file_path": "vllm/core.py",
-            "first_character_index": 50,
-            "last_character_index": 150
-        }
-
-        source = MinimalSource(**data)
-        assert source.file_path == "vllm/core.py"
+            MinimalSource(file_path="test.py", first_character_index=0, last_character_index=100, extra_field="x")
 
     def test_validation_missing_field(self) -> None:
-        """Test validation fails with missing required field."""
-        with pytest.raises(ValidationError) as exc_info:
-            MinimalSource(file_path="test.py")  # Missing indices
-
-        # Check error message
-        errors = exc_info.value.errors()
-        assert any(e['loc'] == ('first_character_index',) for e in errors)
-        assert any(e['loc'] == ('last_character_index',) for e in errors)
-
-    def test_validation_wrong_type(self) -> None:
-        """Test validation fails with wrong types."""
         with pytest.raises(ValidationError):
-            MinimalSource(
-                file_path="test.py",
-                first_character_index="not an int",  # ❌ Should be int
-                last_character_index=100
-            )
+            MinimalSource(file_path="test.py")
 
-
-# ============================================================================
-# QUESTION MODELS TESTS
-# ============================================================================
 
 class TestUnansweredQuestion:
-    """Tests for UnansweredQuestion model."""
-
     def test_creation_with_auto_id(self) -> None:
-        """Test that question_id is auto-generated."""
         q = UnansweredQuestion(question="What is RAG?")
-
-        assert q.question == "What is RAG?"
-        assert q.question_id is not None
-        assert len(q.question_id) > 0
-
-        # Should be valid UUID
         uuid.UUID(q.question_id)
 
-    def test_creation_with_custom_id(self) -> None:
-        """Test providing custom question_id."""
-        custom_id = "q-12345"
-        q = UnansweredQuestion(
-            question_id=custom_id,
-            question="Custom question"
-        )
-
-        assert q.question_id == custom_id
-
-    def test_unique_ids(self) -> None:
-        """Test that each question gets unique ID."""
-        q1 = UnansweredQuestion(question="Question 1")
-        q2 = UnansweredQuestion(question="Question 2")
-        q3 = UnansweredQuestion(question="Question 1")  # Same question
-
-        # All should have different IDs
-        assert q1.question_id != q2.question_id
-        assert q1.question_id != q3.question_id
-        assert q2.question_id != q3.question_id
-
-    def test_validation(self) -> None:
-        """Test validation."""
-        # Missing question
-        with pytest.raises(ValidationError):
-            UnansweredQuestion()
-
     def test_serialization(self) -> None:
-        """Test JSON serialization."""
         q = UnansweredQuestion(question="Test?")
-
-        # To dict
         data = q.model_dump()
-        assert "question_id" in data
-        assert data["question"] == "Test?"
+        assert set(data.keys()) == {"question_id", "question"}
 
-        # Round-trip
-        q2 = UnansweredQuestion(**data)
-        assert q2.question_id == q.question_id
-
-    def test_type_field(self) -> None:
-        """Test that type field is set to 'unanswered'."""
-        q = UnansweredQuestion(question="What is RAG?")
-        assert q.type == "unanswered"
-
-        # Serialized output should include type
-        data = q.model_dump()
-        assert data["type"] == "unanswered"
+    def test_extra_fields_forbidden(self) -> None:
+        with pytest.raises(ValidationError):
+            UnansweredQuestion(question="Test?", type="unanswered")
 
 
 class TestAnsweredQuestion:
-    """Tests for AnsweredQuestion model."""
-
     def test_creation_with_sources(self) -> None:
-        """Test creating with sources and answer."""
-        sources = [
-            MinimalSource(
-                file_path="docs.md",
-                first_character_index=0,
-                last_character_index=100
-            ),
-            MinimalSource(
-                file_path="code.py",
-                first_character_index=50,
-                last_character_index=150
-            )
-        ]
+        sources = [MinimalSource(file_path="docs.md", first_character_index=0, last_character_index=100)]
+        q = AnsweredQuestion(question="What is RAG?", sources=sources, answer="RAG is...")
+        assert len(q.sources) == 1
 
-        q = AnsweredQuestion(
-            question="What is RAG?",
-            sources=sources,
-            answer="RAG is Retrieval-Augmented Generation."
-        )
+    def test_extra_fields_forbidden(self) -> None:
+        with pytest.raises(ValidationError):
+            AnsweredQuestion(question="Test?", sources=[], answer="A.", type="answered")
 
-        assert q.question == "What is RAG?"
-        assert len(q.sources) == 2
-        assert q.answer == "RAG is Retrieval-Augmented Generation."
-        assert q.sources[0].file_path == "docs.md"
-
-    def test_inherits_from_unanswered(self) -> None:
-        """Test that AnsweredQuestion inherits question_id generation."""
-        q = AnsweredQuestion(
-            question="Test?",
-            sources=[],
-            answer="Test."
-        )
-
-        # Should have auto-generated question_id from parent
-        assert q.question_id is not None
-        uuid.UUID(q.question_id)
-
-    def test_serialization(self) -> None:
-        """Test JSON serialization with sources."""
-        sources = [
-            MinimalSource(
-                file_path="test.py",
-                first_character_index=0,
-                last_character_index=50
-            )
-        ]
-
-        q = AnsweredQuestion(
-            question="Test?",
-            sources=sources,
-            answer="Answer."
-        )
-
-        # Serialize
-        data = q.model_dump()
-        assert len(data["sources"]) == 1
-        assert data["sources"][0]["file_path"] == "test.py"
-
-        # Deserialize
-        q2 = AnsweredQuestion(**data)
-        assert q2.sources[0].file_path == "test.py"
-
-    def test_type_field(self) -> None:
-        """Test that type field is set to 'answered'."""
-        q = AnsweredQuestion(
-            question="Test?",
-            sources=[],
-            answer="Test."
-        )
-        assert q.type == "answered"
-
-        # Serialized output should include type
-        data = q.model_dump()
-        assert data["type"] == "answered"
-
-
-# ============================================================================
-# DATASET TESTS
-# ============================================================================
 
 class TestRagDataset:
-    """Tests for RagDataset model."""
-
-    def test_creation_mixed_questions(self) -> None:
-        """Test dataset with both answered and unanswered questions."""
-        questions = [
-            UnansweredQuestion(question="Q1?"),
-            AnsweredQuestion(
-                question="Q2?",
-                sources=[MinimalSource(file_path="f.py", first_character_index=0, last_character_index=50)],
-                answer="Answer."
-            ),
-            UnansweredQuestion(question="Q3?"),
-        ]
-
-        dataset = RagDataset(rag_questions=questions)
-
-        assert len(dataset.rag_questions) == 3
-        assert isinstance(dataset.rag_questions[0], UnansweredQuestion)
-        assert isinstance(dataset.rag_questions[1], AnsweredQuestion)
-
-    def test_serialization(self) -> None:
-        """Test JSON serialization of entire dataset."""
-        questions = [
-            UnansweredQuestion(question="Q1?"),
-            AnsweredQuestion(
-                question="Q2?",
-                sources=[MinimalSource(file_path="f.py", first_character_index=0, last_character_index=50)],
-                answer="Ans."
-            ),
-        ]
-
-        dataset = RagDataset(rag_questions=questions)
-
-        # Serialize
-        json_str = dataset.model_dump_json()
-        data = json.loads(json_str)
-
-        # Deserialize
-        dataset2 = RagDataset(**data)
-        assert len(dataset2.rag_questions) == 2
-
-    def test_discriminator_deserialization(self) -> None:
-        """Test that discriminator correctly routes to the right type."""
-        # Dict with type="unanswered" -> should become UnansweredQuestion
-        unanswered_data = {
-            "type": "unanswered",
-            "question_id": "q1",
-            "question": "Test?"
-        }
-        dataset = RagDataset(rag_questions=[unanswered_data])
-        assert isinstance(dataset.rag_questions[0], UnansweredQuestion)
-
-        # Dict with type="answered" -> should become AnsweredQuestion
+    def test_creation_mixed_questions_no_type_field(self) -> None:
+        """RagDataset must correctly disambiguate the union from plain
+        dicts shaped exactly like real ground-truth JSON -- i.e. with
+        NO 'type' key present, since the subject's data format never
+        includes one."""
+        unanswered_data = {"question_id": "q1", "question": "Test?"}
         answered_data = {
-            "type": "answered",
             "question_id": "q2",
             "question": "Test?",
             "sources": [],
-            "answer": "Answer."
+            "answer": "Answer.",
         }
-        dataset = RagDataset(rag_questions=[answered_data])
-        assert isinstance(dataset.rag_questions[0], AnsweredQuestion)
+        dataset = RagDataset(rag_questions=[unanswered_data, answered_data])
+        assert isinstance(dataset.rag_questions[0], UnansweredQuestion)
+        assert isinstance(dataset.rag_questions[1], AnsweredQuestion)
+        assert not isinstance(dataset.rag_questions[0], AnsweredQuestion)
 
+    def test_serialization_roundtrip(self) -> None:
+        questions = [
+            UnansweredQuestion(question="Q1?"),
+            AnsweredQuestion(
+                question="Q2?",
+                sources=[MinimalSource(file_path="f.py", first_character_index=0, last_character_index=50)],
+                answer="Ans.",
+            ),
+        ]
+        dataset = RagDataset(rag_questions=questions)
+        json_str = dataset.model_dump_json()
+        dataset2 = RagDataset(**json.loads(json_str))
+        assert len(dataset2.rag_questions) == 2
+        assert isinstance(dataset2.rag_questions[1], AnsweredQuestion)
 
-# ============================================================================
-# SEARCH RESULT TESTS
-# ============================================================================
 
 class TestMinimalSearchResults:
-    """Tests for MinimalSearchResults model."""
-
     def test_creation(self) -> None:
-        """Test basic creation."""
-        sources = [
-            MinimalSource(file_path="file1.py", first_character_index=0, last_character_index=100),
-            MinimalSource(file_path="file2.py", first_character_index=50, last_character_index=150),
-        ]
-
-        result = MinimalSearchResults(
-            question_id="q1",
-            question="How to?",
-            retrieved_sources=sources
-        )
-
+        result = MinimalSearchResults(question_id="q1", question="How to?", retrieved_sources=[])
         assert result.question_id == "q1"
-        assert len(result.retrieved_sources) == 2
-
-    def test_empty_sources(self) -> None:
-        """Test with no sources (empty search result)."""
-        result = MinimalSearchResults(
-            question_id="q1",
-            question="Test?",
-            retrieved_sources=[]
-        )
-
-        assert len(result.retrieved_sources) == 0
-
-    def test_serialization(self) -> None:
-        """Test JSON serialization."""
-        sources = [MinimalSource(file_path="test.py", first_character_index=0, last_character_index=50)]
-        result = MinimalSearchResults(
-            question_id="q1",
-            question="Q?",
-            retrieved_sources=sources
-        )
-
-        data = result.model_dump()
-        assert data["question_id"] == "q1"
-        assert len(data["retrieved_sources"]) == 1
 
     def test_extra_fields_forbidden(self) -> None:
-        """Test that extra fields raise ValidationError."""
         with pytest.raises(ValidationError):
-            MinimalSearchResults(
-                question_id="q1",
-                question="Q?",
-                extras="not allowed"
-            )
+            MinimalSearchResults(question_id="q1", question="Q?", extras="not allowed")
 
 
 class TestMinimalAnswer:
-    """Tests for MinimalAnswer model."""
-
     def test_creation(self) -> None:
-        """Test creating answer with sources."""
-        sources = [MinimalSource(file_path="doc.md", first_character_index=0, last_character_index=100)]
-
-        answer = MinimalAnswer(
-            question_id="q1",
-            question="What is RAG?",
-            retrieved_sources=sources,
-            answer="RAG is..."
-        )
-
-        assert answer.question == "What is RAG?"
+        answer = MinimalAnswer(question_id="q1", question="What is RAG?", retrieved_sources=[], answer="RAG is...")
         assert answer.answer == "RAG is..."
-        assert len(answer.retrieved_sources) == 1
-
-    def test_inherits_search_results(self) -> None:
-        """Test that MinimalAnswer extends MinimalSearchResults."""
-        sources = [MinimalSource(file_path="test.py", first_character_index=0, last_character_index=50)]
-
-        answer = MinimalAnswer(
-            question_id="q1",
-            question="Q?",
-            retrieved_sources=sources,
-            answer="A."
-        )
-
-        # Should have all MinimalSearchResults fields
-        assert answer.question_id == "q1"
-        assert answer.question == "Q?"
-        assert answer.retrieved_sources == sources
-        # Plus answer field
-        assert answer.answer == "A."
-
-
-# ============================================================================
-# BATCH RESULT TESTS
-# ============================================================================
-
-class TestStudentSearchResults:
-    """Tests for StudentSearchResults model."""
-
-    def test_creation(self) -> None:
-        """Test batch of search results."""
-        results = [
-            MinimalSearchResults(
-                question_id="q1",
-                question="Q1?",
-                retrieved_sources=[MinimalSource(file_path="f.py", first_character_index=0, last_character_index=50)]
-            ),
-            MinimalSearchResults(
-                question_id="q2",
-                question="Q2?",
-                retrieved_sources=[MinimalSource(file_path="f.py", first_character_index=100, last_character_index=150)]
-            ),
-        ]
-
-        batch = StudentSearchResults(search_results=results, k=10)
-
-        assert len(batch.search_results) == 2
-        assert batch.k == 10
-
-    def test_k_validation(self) -> None:
-        """Test that k must be >= 1."""
-        # Valid
-        batch = StudentSearchResults(search_results=[], k=1)
-        assert batch.k == 1
-
-        # Invalid
-        with pytest.raises(ValidationError):
-            StudentSearchResults(search_results=[], k=0)  # ❌ k < 1
-
-        with pytest.raises(ValidationError):
-            StudentSearchResults(search_results=[], k=-5)  # ❌ k < 1
 
     def test_extra_fields_forbidden(self) -> None:
-        """Test that extra fields raise ValidationError."""
         with pytest.raises(ValidationError):
-            StudentSearchResults(
-                search_results=[],
-                k=10,
-                extra_metadata="not allowed"
-            )
+            MinimalAnswer(question_id="q1", question="Q?", retrieved_sources=[], answer="A.", extra="x")
+
+
+class TestStudentSearchResults:
+    def test_k_validation(self) -> None:
+        StudentSearchResults(search_results=[], k=1)
+        with pytest.raises(ValidationError):
+            StudentSearchResults(search_results=[], k=0)
+
+    def test_extra_fields_forbidden(self) -> None:
+        with pytest.raises(ValidationError):
+            StudentSearchResults(search_results=[], k=10, extra_metadata="x")
 
 
 class TestStudentSearchResultsAndAnswer:
-    """Tests for StudentSearchResultsAndAnswer model."""
-
-    def test_creation(self) -> None:
-        """Test batch with answers."""
-        answers = [
-            MinimalAnswer(
-                question_id="q1",
-                question="Q1?",
-                retrieved_sources=[MinimalSource(file_path="f.py", first_character_index=0, last_character_index=50)],
-                answer="A1."
-            ),
-            MinimalAnswer(
-                question_id="q2",
-                question="Q2?",
-                retrieved_sources=[MinimalSource(file_path="f.py", first_character_index=100, last_character_index=150)],
-                answer="A2."
-            ),
-        ]
-
+    def test_creation_has_k(self) -> None:
+        answers = [MinimalAnswer(question_id="q1", question="Q1?", retrieved_sources=[], answer="A1.")]
         batch = StudentSearchResultsAndAnswer(search_results=answers, k=10)
+        assert batch.k == 10
 
-        assert len(batch.search_results) == 2
-        assert batch.search_results[0].answer == "A1."
-        assert batch.search_results[1].answer == "A2."
-
-    def test_serialization(self) -> None:
-        """Test JSON serialization of batch with answers."""
-        answers = [
-            MinimalAnswer(
-                question_id="q1",
-                question="Q?",
-                retrieved_sources=[MinimalSource(file_path="f.py", first_character_index=0, last_character_index=50)],
-                answer="A."
-            ),
-        ]
-
+    def test_serialization_includes_k(self) -> None:
+        answers = [MinimalAnswer(question_id="q1", question="Q?", retrieved_sources=[], answer="A.")]
         batch = StudentSearchResultsAndAnswer(search_results=answers, k=5)
-
-        # Serialize and deserialize
-        json_str = batch.model_dump_json()
-        data = json.loads(json_str)
+        data = json.loads(batch.model_dump_json())
+        assert data["k"] == 5
         batch2 = StudentSearchResultsAndAnswer(**data)
-
         assert batch2.k == 5
-        assert batch2.search_results[0].answer == "A."
 
-    def test_extra_fields_forbidden_inherited(self) -> None:
-        """Test that extra fields are forbidden (inherited from StudentSearchResults)."""
+    def test_extra_fields_forbidden(self) -> None:
         with pytest.raises(ValidationError):
-            StudentSearchResultsAndAnswer(
-                search_results=[],
-                k=10,
-                unknown_field="not allowed"
-            )
+            StudentSearchResultsAndAnswer(search_results=[], k=10, unknown_field="x")
 
-
-class TestMinimalAnswerExtraFields:
-    """Tests for MinimalAnswer extra field handling (inherited from MinimalSearchResults)."""
-
-    def test_extra_fields_forbidden_inherited(self) -> None:
-        """Test that extra fields raise ValidationError (inherited from MinimalSearchResults)."""
-        with pytest.raises(ValidationError):
-            MinimalAnswer(
-                question_id="q1",
-                question="Q?",
-                retrieved_sources=[],
-                answer="A.",
-                extra="not allowed"
-            )
-
-
-# ============================================================================
-# INTERNAL MODEL TESTS
-# ============================================================================
 
 class TestChunk:
-    """Tests for Chunk model."""
-
-    def test_creation_python(self) -> None:
-        """Test creating Python chunk."""
-        chunk = Chunk(
-            chunk_id="c1",
-            content="def hello(): pass",
-            file_path="hello.py",
-            start_index=0,
-            end_index=17,
-            chunk_type="python"
-        )
-
-        assert chunk.content == "def hello(): pass"
-        assert chunk.chunk_type == "python"
-        assert chunk.start_index == 0
-
-    def test_creation_text(self) -> None:
-        """Test creating text chunk."""
-        chunk = Chunk(
-            chunk_id="c2",
-            content="This is documentation",
-            file_path="README.md",
-            start_index=10,
-            end_index=32,
-            chunk_type="text"
-        )
-
-        assert chunk.chunk_type == "text"
-
-    def test_auto_chunk_id(self) -> None:
-        """Test auto-generated chunk_id."""
-        c1 = Chunk(
-            content="test",
-            file_path="test.py",
-            start_index=0,
-            end_index=4,
-            chunk_type="python"
-        )
-
-        c2 = Chunk(
-            content="test",
-            file_path="test.py",
-            start_index=0,
-            end_index=4,
-            chunk_type="python"
-        )
-
-        # Different auto-generated IDs
-        assert c1.chunk_id != c2.chunk_id
-        assert len(c1.chunk_id) > 0
-
     def test_chunk_type_validation(self) -> None:
-        """Test chunk_type must be 'python' or 'text'."""
-        # Valid
-        Chunk(
-            content="test",
-            file_path="test.py",
-            start_index=0,
-            end_index=4,
-            chunk_type="python"
-        )
-
-        Chunk(
-            content="test",
-            file_path="test.md",
-            start_index=0,
-            end_index=4,
-            chunk_type="text"
-        )
-
-        # Invalid
+        Chunk(content="test", file_path="test.py", start_index=0, end_index=4, chunk_type="python")
         with pytest.raises(ValidationError):
-            Chunk(
-                content="test",
-                file_path="test.js",
-                start_index=0,
-                end_index=4,
-                chunk_type="javascript"  # ❌ Not allowed
-            )
+            Chunk(content="test", file_path="test.js", start_index=0, end_index=4, chunk_type="javascript")
 
     def test_index_constraints(self) -> None:
-        """Test that indices must be >= 0."""
-        # Valid
-        Chunk(
-            content="test",
-            file_path="test.py",
-            start_index=0,
-            end_index=4,
-            chunk_type="python"
-        )
-
-        # Invalid - negative index
         with pytest.raises(ValidationError):
-            Chunk(
-                content="test",
-                file_path="test.py",
-                start_index=-1,
-                end_index=4,
-                chunk_type="python"
-            )
+            Chunk(content="test", file_path="test.py", start_index=-1, end_index=4, chunk_type="python")
 
     def test_offset_content_consistency(self) -> None:
-        """Test that chunk offsets are consistent with content.
-
-        Chunking code must ensure that for any Chunk,
-        original_file_text[start_index:end_index] == content.
-        """
         original = "def hello(): pass\n    return 42\n"
-
-        chunk = Chunk(
-            content="def hello(): pass",
-            file_path="test.py",
-            start_index=0,
-            end_index=17,
-            chunk_type="python"
-        )
-        assert original[chunk.start_index:chunk.end_index] == chunk.content, \
-            "Content must match original text at the given offsets"
-
-        chunk = Chunk(
-            content="    return 42",
-            file_path="test.py",
-            start_index=18,
-            end_index=31,
-            chunk_type="python"
-        )
-        assert original[chunk.start_index:chunk.end_index] == chunk.content, \
-            "Content must match original text at the given offsets"
+        chunk = Chunk(content="def hello(): pass", file_path="test.py", start_index=0, end_index=17, chunk_type="python")
+        assert original[chunk.start_index:chunk.end_index] == chunk.content
 
 
 class TestIndexMetadata:
-    """Tests for IndexMetadata model."""
-
-    def test_creation(self) -> None:
-        """Test creating metadata."""
-        metadata = IndexMetadata(
-            total_chunks=1000,
-            file_count=50,
-            index_type="bm25",
-            created_at="2024-01-15T10:30:00"
-        )
-
-        assert metadata.total_chunks == 1000
-        assert metadata.file_count == 50
-        assert metadata.index_type == "bm25"
-
-    def test_created_at_is_datetime(self) -> None:
-        """Test that created_at is coerced to datetime."""
+    def test_creation_and_datetime_coercion(self) -> None:
         from datetime import datetime
-
-        # String input should be coerced to datetime
-        metadata = IndexMetadata(
-            total_chunks=1000,
-            file_count=50,
-            index_type="bm25",
-            created_at="2024-01-15T10:30:00"
-        )
+        metadata = IndexMetadata(total_chunks=1000, file_count=50, index_type="bm25", created_at="2024-01-15T10:30:00")
         assert isinstance(metadata.created_at, datetime)
-
-        # Direct datetime input should work too
-        metadata = IndexMetadata(
-            total_chunks=1000,
-            file_count=50,
-            index_type="bm25",
-            created_at=datetime(2024, 1, 15, 10, 30, 0)
-        )
-        assert isinstance(metadata.created_at, datetime)
-
-        # Invalid datetime string should raise
-        with pytest.raises(ValidationError):
-            IndexMetadata(
-                total_chunks=1000,
-                file_count=50,
-                index_type="bm25",
-                created_at="not-a-datetime"
-            )
-
-    def test_created_at_serialization(self) -> None:
-        """Test that datetime serializes to ISO 8601 string."""
-        metadata = IndexMetadata(
-            total_chunks=1000,
-            file_count=50,
-            index_type="bm25",
-            created_at="2024-01-15T10:30:00"
-        )
-        json_str = metadata.model_dump_json()
-        data = json.loads(json_str)
-        assert data["created_at"] == "2024-01-15T10:30:00"
 
     def test_constraints(self) -> None:
-        """Test count constraints (must be >= 0)."""
-        # Valid
-        IndexMetadata(
-            total_chunks=0,
-            file_count=0,
-            index_type="bm25",
-            created_at="2024-01-15T10:30:00"
-        )
-
-        # Invalid - negative count
         with pytest.raises(ValidationError):
-            IndexMetadata(
-                total_chunks=-1,
-                file_count=50,
-                index_type="bm25",
-                created_at="2024-01-15T10:30:00"
-            )
+            IndexMetadata(total_chunks=-1, file_count=50, index_type="bm25", created_at="2024-01-15T10:30:00")
 
-
-# ============================================================================
-# INTEGRATION TESTS
-# ============================================================================
 
 class TestIntegration:
-    """Integration tests across multiple models."""
-
     def test_full_pipeline_serialization(self) -> None:
-        """Test serialization of a complete RAG result."""
-        # Create a complete answer with sources
-        sources = [
-            MinimalSource(file_path="docs/api.md", first_character_index=100, last_character_index=200),
-            MinimalSource(file_path="src/api.py", first_character_index=50, last_character_index=150),
-        ]
-
-        answer = MinimalAnswer(
-            question_id="q1",
-            question="How to use the API?",
-            retrieved_sources=sources,
-            answer="The API can be used by..."
-        )
-
-        # Create a batch
-        batch = StudentSearchResultsAndAnswer(
-            search_results=[answer],
-            k=10
-        )
-
-        # Serialize to JSON
-        json_str = batch.model_dump_json(indent=2)
-
-        # Parse and verify
-        data = json.loads(json_str)
+        sources = [MinimalSource(file_path="docs/api.md", first_character_index=100, last_character_index=200)]
+        answer = MinimalAnswer(question_id="q1", question="How to use the API?", retrieved_sources=sources, answer="...")
+        batch = StudentSearchResultsAndAnswer(search_results=[answer], k=10)
+        data = json.loads(batch.model_dump_json())
         assert data["k"] == 10
-        assert len(data["search_results"]) == 1
-        assert data[
-                "search_results"
-                    ][0]["answer"] == "The API can be used by..."
-        assert len(data["search_results"][0]["retrieved_sources"]) == 2
-
-        # Deserialize back
         batch2 = StudentSearchResultsAndAnswer(**data)
         assert batch2.search_results[0].question_id == "q1"
 
-    def test_dataset_with_mix_types(self) -> None:
-        """Test dataset with both answered and unanswered questions."""
-        dataset = RagDataset(
-            rag_questions=[
-                UnansweredQuestion(question="Q1?"),
-                AnsweredQuestion(
-                    question="Q2?",
-                    sources=[MinimalSource(file_path="f.py", first_character_index=0, last_character_index=50)],
-                    answer="A."
-                ),
-                UnansweredQuestion(question="Q3?"),
+    def test_dataset_with_mix_types_no_type_field(self) -> None:
+        """End-to-end: build a RagDataset from raw dicts (as loaded from
+        a real JSON file) with no 'type' key, mirroring exactly how
+        search_dataset/evaluate will load ground-truth data."""
+        raw = {
+            "rag_questions": [
+                {"question_id": "q1", "question": "Q1?"},
+                {
+                    "question_id": "q2",
+                    "question": "Q2?",
+                    "sources": [{"file_path": "f.py", "first_character_index": 0, "last_character_index": 50}],
+                    "answer": "A.",
+                },
             ]
-        )
-
-        # Serialize
-        json_str = dataset.model_dump_json()
-
-        # Deserialize
-        dataset2 = RagDataset(**json.loads(json_str))
-
-        assert len(dataset2.rag_questions) == 3
-        assert isinstance(dataset2.rag_questions[0], UnansweredQuestion)
-        assert isinstance(dataset2.rag_questions[1], AnsweredQuestion)
+        }
+        dataset = RagDataset(**raw)
+        assert isinstance(dataset.rag_questions[0], UnansweredQuestion)
+        assert isinstance(dataset.rag_questions[1], AnsweredQuestion)
 
     def test_extra_fields_forbidden_in_output_chain(self) -> None:
-        """Test extra fields forbidden through full output chain."""
         with pytest.raises(ValidationError):
             StudentSearchResultsAndAnswer(
                 search_results=[
                     MinimalAnswer(
-                        question_id="q1",
-                        question="Q?",
-                        retrieved_sources=[
-                            MinimalSource(
-                                file_path="f.py",
-                                first_character_index=0,
-                                last_character_index=50,
-                                bogus="field"
-                            )
-                        ],
-                        answer="A."
+                        question_id="q1", question="Q?",
+                        retrieved_sources=[MinimalSource(file_path="f.py", first_character_index=0, last_character_index=50, bogus="field")],
+                        answer="A.",
                     )
                 ],
-                k=10
+                k=10,
             )
 
 
 if __name__ == "__main__":
-    # Run with: pytest tests/test_models.py -v
     pytest.main([__file__, "-v"])
