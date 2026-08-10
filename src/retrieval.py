@@ -93,13 +93,39 @@ class Retriever:
 
         Returns:
             The equivalent MinimalSource.
+
+        Raises:
+            ValueError: If chunk is not a dict with the required
+                keys (file_path, start_index, end_index) of the
+                expected types (str, int, int).
         """
-        if not (
-            chunk.get("file_path") and
-            chunk.get("start_index") and
-            chunk.get("end_index")
-                ):
-            raise ValueError("Error: chunk dict is in the wrong format")
+
+        if not isinstance(chunk, dict):
+            raise ValueError(
+                f"chunk must be a dict, got {type(chunk).__name__}"
+            )
+
+        missing = [
+            key for key in ("file_path", "start_index", "end_index")
+            if key not in chunk
+        ]
+        if missing:
+            raise ValueError(
+                f"chunk is missing required key(s): {', '.join(missing)}"
+            )
+
+        expected = {
+            "file_path": str,
+            "start_index": int,
+            "end_index": int,
+        }
+        for key, key_type in expected.items():
+            if not isinstance(chunk[key], key_type):
+                raise ValueError(
+                    f"chunk[{key!r}] must be of type "
+                    f"{key_type.__name__}, got "
+                    f"{type(chunk[key]).__name__}"
+                )
 
         return MinimalSource(
                 file_path=chunk["file_path"],
