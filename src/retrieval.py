@@ -1,0 +1,82 @@
+"""Retrieval module — loads a persisted BM25 index and answers queries."""
+
+from .models import MinimalSource
+
+from pathlib import Path
+from typing import Any
+
+import bm25s
+
+
+class Retriever:
+    """Loads a persisted BM25 index and corpus, and answers search queries.
+
+    Instances are meant to be constructed once per process (loading the
+    index is the expensive part) and reused across many .search() calls,
+    matching the "index once, search many times" pipeline design: the
+    Indexer writes data/processed/ once via `index`, and any later
+    `search` / `search_dataset` / `answer` / `answer_dataset` invocation
+    -- potentially a fresh process each time -- reloads it here rather
+    than re-chunking the repository.
+
+    Attributes:
+        (private) __retriever: the loaded bm25s.BM25 index, with its
+            corpus attached via load_corpus=True at load time.
+    """
+
+    def __init__(self, index_dir: str) -> None:
+        """Load a previously built BM25 index and its corpus from disk.
+
+        Args:
+            index_dir: Directory containing the persisted index, as
+                written by Indexer.save_index (e.g. "data/processed").
+
+        Raises:
+            ValueError: If index_dir does not exist, is not a
+                directory, or does not contain a loadable index.
+        """
+        self.index_dir: str = index_dir
+
+    def search(self, query: str, k: int = 10) -> list[MinimalSource]:
+        """Search the index for a single query.
+
+        Tokenizes the query with the same scheme used at indexing time
+        (bm25s.tokenize with English stopwords) so query-time and
+        index-time tokens are comparable, scores every chunk, and
+        returns the top-k as MinimalSource objects.
+
+        Degenerate inputs are handled gracefully rather than raising:
+        - an empty or whitespace-only query returns []
+        - k <= 0 returns []
+        - k larger than the corpus size is clamped down automatically
+
+        Args:
+            query: The natural-language search query.
+            k: Number of top results to retrieve.
+
+        Returns:
+            Up to k MinimalSource results, ranked by relevance
+            (highest-scoring first).
+        """
+        raise NotImplementedError
+
+    def __chunk_to_source(self, chunk: dict[str, Any]) -> MinimalSource:
+        """Convert one raw corpus entry into a MinimalSource.
+
+        This is the single conversion point between the internal Chunk
+        representation persisted in the corpus (start_index/end_index,
+        content, chunk_id, chunk_type) and the public MinimalSource
+        schema (file_path/first_character_index/last_character_index)
+        that every downstream stage -- and the moulinette -- actually
+        consumes. Keeping this mapping in exactly one place means a
+        future field rename only needs to change here.
+
+        Args:
+            chunk: One entry from the loaded bm25s corpus, shaped like
+                a serialized Chunk (dict, not the pydantic model,
+                since bm25s persists corpus entries as plain JSON).
+
+        Returns:
+            The equivalent MinimalSource.
+        """
+        raise NotImplementedError
