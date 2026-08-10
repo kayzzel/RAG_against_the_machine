@@ -2,7 +2,6 @@
 
 from .models import MinimalSource
 
-from pathlib import Path
 from typing import Any
 
 import bm25s
@@ -36,6 +35,7 @@ class Retriever:
                 directory, or does not contain a loadable index.
         """
         self.index_dir: str = index_dir
+        self.__retriever = bm25s.BM25.load(index_dir, load_corpus=True)
 
     def search(self, query: str, k: int = 10) -> list[MinimalSource]:
         """Search the index for a single query.
@@ -58,7 +58,22 @@ class Retriever:
             Up to k MinimalSource results, ranked by relevance
             (highest-scoring first).
         """
-        raise NotImplementedError
+        if k <= 0 or not query or not query.strip():
+            return []
+
+        query_token = bm25s.tokenize(
+                [query],
+                stopwords="en",
+                show_progress=False
+            )
+        k_actual = min(k, len(self.__retriever.corpus))
+        results, _ = self.__retriever.retrieve(
+                query_token,
+                k=k_actual,
+                show_progress=False
+            )  # second param is score
+
+        return [self.__chunk_to_source(hit) for hit in results[0]]
 
     def __chunk_to_source(self, chunk: dict[str, Any]) -> MinimalSource:
         """Convert one raw corpus entry into a MinimalSource.
@@ -79,4 +94,15 @@ class Retriever:
         Returns:
             The equivalent MinimalSource.
         """
-        raise NotImplementedError
+        if not (
+            chunk.get("file_path") and
+            chunk.get("start_index") and
+            chunk.get("end_index")
+                ):
+            raise ValueError("Error: chunk dict is in the wrong format")
+
+        return MinimalSource(
+                file_path=chunk["file_path"],
+                first_character_index=chunk["start_index"],
+                last_character_index=chunk["end_index"]
+            )
