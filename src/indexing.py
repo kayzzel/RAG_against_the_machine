@@ -19,10 +19,14 @@ class Indexer:
                 ) -> tuple[bm25s.BM25, list[dict[str, Any]]]:
         """Walk the repo, chunk every included file, and build a BM25 index.
 
-        Returns the fitted BM25 index and the corpus list backing it
-        (each corpus entry is a plain dict, since bm25s persists corpus
-        entries as JSON — pydantic models aren't directly serializable
-        this way, so we convert Chunk -> dict here).
+        Args:
+            repo_path: Path to the root of the extracted vLLM repository.
+
+        Returns:
+            A tuple of the fitted BM25 index and the corpus list backing
+            it (each corpus entry is a plain dict, since bm25s persists
+            corpus entries as JSON — pydantic models aren't directly
+            serializable this way, so we convert Chunk -> dict here).
         """
         chunks = self.__collect_chunks(repo_path)
         corpus = [chunk.model_dump() for chunk in chunks]  # pydantic -> dict
