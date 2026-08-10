@@ -1,11 +1,12 @@
 from .indexing import Indexer
 from .chunking import Chunking
 from .retrieval import MinimalSource, Retriever
+from .utils import getDataset, write_json_to_file
 
-from pathlib import Path
+from typing import Any
 
-import json
 import sys
+import os
 
 
 class CLI:
@@ -63,15 +64,39 @@ class CLI:
             k: Number of results per question.
             save_directory: Directory to save search results.
         """
-        path = Path(dataset_path)
-        if not path.exists():
-            raise FileNotFoundError(f"Dataset not found: {dataset_path}")
         try:
-            with open(path) as f:
-                json.load(f)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON in dataset: {e}")
-        raise NotImplementedError
+            dataset: dict[Any, Any] = getDataset(dataset_path)
+            retriever: Retriever = Retriever("data/processed")
+        except ValueError as err:
+            print(f"ERROR: {err}")
+            return
+
+        search_results: dict[str, Any] = {
+                "search_results": [],
+                "k": k
+                }
+
+        for question in dataset["rag_questions"]:
+            top_chunks: list[MinimalSource] = retriever.search(
+                    question["question"],
+                    k
+                )
+            search_results["search_results"].append(
+                    {
+                        "question_id": question["question_id"],
+                        "question": question["question"],
+                        "retrieved_sources": [
+                            source.model_dump() for source in top_chunks
+                        ]
+                    }
+                )
+
+        output_file: str = os.path.join(
+                save_directory,
+                os.path.basename(dataset_path)
+            )
+
+        write_json_to_file(output_file, search_results)
 
     def answer(self, question: str, k: int = 10) -> None:
         """Answer a single question end-to-end (search + generate).
