@@ -1,5 +1,6 @@
 from .indexing import Indexer
 from .chunking import Chunking
+from .retrieval import MinimalSource, Retriever
 
 from pathlib import Path
 
@@ -38,7 +39,16 @@ class CLI:
             query: The search query.
             k: Number of results to retrieve.
         """
-        raise NotImplementedError
+        index_dir: str = "data/processed"
+
+        retriever: Retriever = Retriever(index_dir)
+        top_chunks: list[MinimalSource] = retriever.search(query, k)
+
+        for chunk in top_chunks:
+            print(
+                f"{chunk.file_path} "
+                f"[{chunk.first_character_index}:{chunk.last_character_index}]"
+            )
 
     def search_dataset(
         self,
