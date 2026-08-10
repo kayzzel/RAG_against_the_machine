@@ -1,6 +1,7 @@
 # other 
 vllm/
-data/
+data/process/
+data/output/
 en.subject.pdf
 
 # Byte-compiled / optimized / DLL files
