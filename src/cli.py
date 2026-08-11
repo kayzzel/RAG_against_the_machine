@@ -1,5 +1,6 @@
 from .indexing import Indexer
 from .chunking import Chunking
+from .models import MinimalSearchResults, StudentSearchResults
 from .retrieval import MinimalSource, Retriever
 from .utils import getDataset, write_json_to_file
 
@@ -71,32 +72,30 @@ class CLI:
             print(f"ERROR: {err}")
             return
 
-        search_results: dict[str, Any] = {
-                "search_results": [],
-                "k": k
-                }
+        results: list[MinimalSearchResults] = []
 
         for question in dataset["rag_questions"]:
             top_chunks: list[MinimalSource] = retriever.search(
                     question["question"],
                     k
                 )
-            search_results["search_results"].append(
-                    {
-                        "question_id": question["question_id"],
-                        "question": question["question"],
-                        "retrieved_sources": [
-                            source.model_dump() for source in top_chunks
-                        ]
-                    }
-                )
+            results.append(MinimalSearchResults(
+                    question_id=question["question_id"],
+                    question=question["question"],
+                    retrieved_sources=top_chunks,
+                ))
 
         output_file: str = os.path.join(
                 save_directory,
                 os.path.basename(dataset_path)
             )
-
-        write_json_to_file(output_file, search_results)
+        write_json_to_file(
+                output_file,
+                StudentSearchResults(
+                    search_results=results,
+                    k=k
+                ).model_dump()
+            )
 
     def answer(self, question: str, k: int = 10) -> None:
         """Answer a single question end-to-end (search + generate).

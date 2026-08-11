@@ -1,5 +1,6 @@
 """Retrieval module — loads a persisted BM25 index and answers queries."""
 
+from pathlib import Path
 from .models import MinimalSource
 
 from typing import Any
@@ -34,8 +35,15 @@ class Retriever:
             ValueError: If index_dir does not exist, is not a
                 directory, or does not contain a loadable index.
         """
-        self.index_dir: str = index_dir
-        self.__retriever = bm25s.BM25.load(index_dir, load_corpus=True)
+        if not Path(index_dir).is_dir():
+            raise ValueError(f"index directory not found: {index_dir}")
+        self.index_dir = index_dir
+        try:
+            self.__retriever = bm25s.BM25.load(index_dir, load_corpus=True)
+        except Exception as err:
+            raise ValueError(
+                f"failed to load index from {index_dir}: {err}"
+            ) from err
 
     def search(self, query: str, k: int = 10) -> list[MinimalSource]:
         """Search the index for a single query.
